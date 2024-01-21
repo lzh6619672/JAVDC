@@ -1,13 +1,20 @@
 package com.javdc.cup;
 
+import java.awt.Rectangle;
+import java.awt.image.BufferedImage;
 import java.io.File;
-import java.io.FilenameFilter;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.InetSocketAddress;
 import java.net.Proxy;
+import java.nio.file.FileVisitResult;
+import java.nio.file.FileVisitor;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -25,76 +32,107 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
-import cn.hutool.core.date.DateUtil;
+import cn.hutool.core.img.ImgUtil;
 import cn.hutool.core.io.FileUtil;
 import cn.hutool.http.HttpRequest;
 import cn.hutool.http.HttpResponse;
 import cn.hutool.http.HttpUtil;
+import lombok.extern.slf4j.Slf4j;
 
+
+@Slf4j
 public class CupApplication {
 
 	public static void main(String[] args) {
-		/* SpringApplication.run(CupApplication.class, args); */
+		String scanPath = "D:\\tinyMediaManager\\media\\cctv";
+		String outputPath = "D:\\tinyMediaManager\\media\\cctv\\JAV_output";
 
-		try {
-
-			String scanPath = "D:\\tinyMediaManager\\media\\cctv";
-			String outputPath = "D:\\tinyMediaManager\\media\\cctv\\JAV_output";
-
-			File file = new File(scanPath);
-			if (!file.exists()) {
-				return;
-			}
-
-			File destPath = FileUtil.file(outputPath);
-			if (!destPath.exists()) {
-				destPath.mkdirs();
-			}
-
-			String[] fileNames = file.list(new FilenameFilter() {
-
-				@Override
-				public boolean accept(File dir, String name) {
-					String mimeType = FileUtil.getMimeType(name);
-					if (("video/mp4").equals(mimeType)) {
-						return true;
-					}
-					return false;
-				}
-			});
-
-			System.out.println("扫描到视频文件：" + Arrays.toString(fileNames));
-
-			if (fileNames.length == 0) {
-				return;
-			}
-
-			for (String fileName : fileNames) {
-				File movieFile = new File(scanPath + File.separator + fileName);
-
-				Map<String, String> infoMap = new HashMap<>();
-				boolean hasMovie = search(fileName, infoMap);
-
-				if (!hasMovie) {
-					System.out.println("没找到视频");
-					continue;
-				}
-
-				String website = infoMap.get("website");
-				downloadMovieInfo(infoMap, movieFile, destPath);
-
-				/*
-				 * File moviePath = destStarFile.getAbsolutePath()+File.pathSeparator+
-				 * FileUtil.move(movieFile, destStarFile, false);
-				 */
-
-			}
-		} catch (Exception e) {
-			System.out.println(e.getMessage());
-			e.printStackTrace();
-			System.out.println(DateUtil.date());
+		File file = new File(scanPath);
+		if (!file.exists()) {
+			return;
 		}
 
+		File destPath = FileUtil.file(outputPath);
+		if (!destPath.exists()) {
+			destPath.mkdirs();
+		}
+
+		try {
+			Files.walkFileTree(Paths.get(scanPath), new FileVisitor<Path>() {
+
+				@Override
+				public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
+					File file = dir.toFile();
+					String fileName = file.getName();
+					if (fileName.equals("JAV_output")) {
+						return FileVisitResult.SKIP_SUBTREE;
+					}
+					return FileVisitResult.CONTINUE;
+				}
+
+				@Override
+				public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+					if (attrs.isDirectory()) {
+						return FileVisitResult.CONTINUE;
+					}
+					File file1 = file.toFile();
+					String fileName = file1.getName();
+					String mimeType = FileUtil.getMimeType(fileName);
+					if (("video/mp4").equals(mimeType)) {
+						grabMain(file.toFile(), destPath);
+					}
+
+					return FileVisitResult.CONTINUE;
+				}
+
+				@Override
+				public FileVisitResult visitFileFailed(Path file, IOException exc) throws IOException {
+					// TODO Auto-generated method stub
+					throw new UnsupportedOperationException("Unimplemented method 'visitFileFailed'");
+				}
+
+				@Override
+				public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
+					// TODO Auto-generated method stub
+					return FileVisitResult.CONTINUE;
+				}
+			});
+		} catch (Exception e) {
+			// TODO: handle exception
+		}
+	}
+
+	private static List<String> filterNames = new ArrayList<>();
+	static {
+		filterNames.add(".h265");
+		filterNames.add(".H265");
+	}
+
+	protected static void grabMain(File movieFile, File destPath) {
+		Map<String, String> infoMap = new HashMap<>();
+
+		movieFile = renameMovieFile(movieFile);
+
+		boolean hasMovie = search(movieFile.getName(), infoMap);
+
+		if (!hasMovie) {
+			System.out.println("没找到视频");
+			return;
+		}
+
+		downloadMovieInfo(infoMap, movieFile, destPath);
+	}
+
+	private static File renameMovieFile(File movieFile) {
+		String fileName = movieFile.getName();
+		for (String string : filterNames) {
+			if (fileName.contains(string)) {
+				System.out.println("文件名称包含" + string + "进行替换");
+				fileName = fileName.replace(string, "");
+				return FileUtil.rename(movieFile, fileName, false);
+			}
+		}
+		return movieFile;
 	}
 
 	private static void downloadMovieInfo(Map<String, String> infoMap, File movieFile, File destPath) {
@@ -126,14 +164,6 @@ public class CupApplication {
 			docString = new String(body, response.charset());
 			Document document = Jsoup.parse(docString);
 
-			String title = "", originaltitle = "", sorttitle = "", set = "", studio = "", year = "", outline = "",
-					plot = "", director = "", poster = "poster.jpg", thumb = "thumb.jpg",
-					fanart = "fanart.jpg", maker = "", label = "", num = "", premiered = "", releasedate = "",
-					release = "", cover = "", website = "";
-			List<String> actor = new ArrayList<>();
-			List<String> tags = new ArrayList<>();
-			List<String> genres = new ArrayList<>();
-
 			Elements actorEles = document.select("div.star-name");
 			String dirName = "";
 			if (actorEles.size() > 1) {
@@ -141,6 +171,9 @@ public class CupApplication {
 			}
 			if (actorEles.size() == 1) {
 				dirName = actorEles.get(0).text();
+			}
+			if (actorEles.size() == 0) {
+				dirName = "佚名";
 			}
 
 			System.out.println(dirName);
@@ -150,7 +183,7 @@ public class CupApplication {
 			}
 
 			Element numEle = document.select("div.movie>div.info>p").first();
-			num = numEle.select("span").get(1).text();
+			String num = numEle.select("span").get(1).text();
 
 			File destMoviePath = new File(destStarFile.getAbsolutePath() + File.separator + num);
 			if (destMoviePath.exists()) {
@@ -160,6 +193,7 @@ public class CupApplication {
 				destMoviePath.mkdirs();
 			}
 
+			movieFile = FileUtil.rename(movieFile, num+"."+FileUtil.extName(movieFile), false);
 			// 移动视频文件
 			FileUtil.move(movieFile, destMoviePath, false);
 
@@ -179,15 +213,22 @@ public class CupApplication {
 
 				FileUtil.copy(thumbFile, new File(destMoviePath.getAbsolutePath() + File.separator + "fanart.jpg"),
 						false);
-			}
 
-			// 下载cover
-			String coverPath = infoMap.get("coverPath");
-			if (!coverPath.startsWith("http") && !coverPath.startsWith("https")) {
-				coverPath = "https://www.javbus.com/" + coverPath;
+				// 截取图片右侧的一半
+				BufferedImage image = ImgUtil.read(thumbFile);
+				File posterFile = new File(destMoviePath + File.separator + "poster.jpg");
+				ImgUtil.cut(thumbFile, posterFile,
+						new Rectangle((int) (image.getWidth() * 0.525), 0, (int) (image.getWidth() * 0.475),
+								image.getHeight()));
+			} else {
+				// 下载poster
+				String coverPath = infoMap.get("coverPath");
+				if (!coverPath.startsWith("http") && !coverPath.startsWith("https")) {
+					coverPath = "https://www.javbus.com/" + coverPath;
+				}
+				File thumbFile = new File(destMoviePath + File.separator + "poster.jpg");
+				downloadFile(coverPath, thumbFile);
 			}
-			File thumbFile = new File(destMoviePath + File.separator + "poster.jpg");
-			downloadFile(coverPath, thumbFile);
 
 			// 下载extrafanart
 			Elements extrafanartEles = document.select(".sample-box");
@@ -198,27 +239,24 @@ public class CupApplication {
 				}
 				int index = 1;
 				for (Element element : extrafanartEles) {
-					Elements imgs = element.select("img");
-					for (Element img : imgs) {
-						String imgUrl = img.attr("src");
-						if (!imgUrl.startsWith("http") && !imgUrl.startsWith("https")) {
-							imgUrl = "https://www.javbus.com/" + imgUrl;
-						}
-						File dImg = new File(extrefanartPath + File.separator + "extrafanart-" + index + ".jpg");
-						downloadFile(imgUrl, dImg);
-						index++;
+					String imgUrl = element.attr("href");
+					if (!imgUrl.startsWith("http") && !imgUrl.startsWith("https")) {
+						imgUrl = "https://www.javbus.com/" + imgUrl;
 					}
+					File dImg = new File(extrefanartPath + File.separator + "extrafanart-" + index + ".jpg");
+					downloadFile(imgUrl, dImg);
+					index++;
 				}
 			}
 
 			// 生成nfo文件
-			createNfoFile(document, destMoviePath);
+			createNfoFile(document, destMoviePath, movieFile);
 		} catch (Exception e) {
 
 		}
 	}
 
-	private static void createNfoFile(Document document, File destMoviePath) {
+	private static void createNfoFile(Document document, File destMoviePath,File movieFile) {
 		Element titleEle = document.selectFirst("title");
 		Elements infoEles = document.select("div.movie>div.info>p");
 
@@ -259,14 +297,14 @@ public class CupApplication {
 					// 查找上一个
 					Element be = infoEles.get(i - 1);
 					Element beHeader = be.selectFirst("span.header");
-					if(beHeader == null){
+					if (beHeader == null) {
 						Elements tags = e.select("span.genre");
 						for (Element element : tags) {
 							org.w3c.dom.Element ele = xmlDocument.createElement("tag");
 							ele.setTextContent(element.text());
 							movieElement.appendChild(ele);
 						}
-					}else{
+					} else {
 						Elements tags = e.select("span.genre");
 						for (Element element : tags) {
 							org.w3c.dom.Element ele = xmlDocument.createElement("actor");
@@ -284,6 +322,11 @@ public class CupApplication {
 					org.w3c.dom.Element ele = xmlDocument.createElement("num");
 					ele.setTextContent(num);
 					movieElement.appendChild(ele);
+
+					/* if(!FileUtil.mainName(movieFile.getName()).equals(num)){
+						FileUtil.rename(new File(destMoviePath+File.separator+movieFile.getName()), num+"."+FileUtil.extName(movieFile.getName()), false)
+					} */
+
 					continue;
 				}
 				if (fieldName.contains("系列")) {
@@ -348,12 +391,12 @@ public class CupApplication {
 			tf.setOutputProperty(OutputKeys.INDENT, "yes");
 			// 创建xml文件并写入内容
 			tf.transform(new DOMSource(movieElement),
-					new StreamResult(new File(destMoviePath + File.separator + destMoviePath.getName()+".nfo")));
+					new StreamResult(new File(destMoviePath + File.separator + destMoviePath.getName() + ".nfo")));
 
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
 			System.out.println(e.getStackTrace());
-		} 
+		}
 	}
 
 	private static boolean search(String fileName, Map<String, String> infoMap) {

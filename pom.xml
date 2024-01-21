@@ -8,7 +8,7 @@
 	<name>cup</name>
 	<description>Demo project for Spring Boot</description>
 	<properties>
-		<java.version>21</java.version>
+		<java.version>1.8</java.version>
 	</properties>
 
 	<dependencies>
@@ -16,13 +16,13 @@
 		<dependency>
 			<groupId>cn.hutool</groupId>
 			<artifactId>hutool-core</artifactId>
-			<version>5.8.16</version>
+			<version>5.8.25</version>
 		</dependency>
 
 		<dependency>
 			<groupId>cn.hutool</groupId>
 			<artifactId>hutool-http</artifactId>
-			<version>5.8.16</version>
+			<version>5.8.25</version>
 		</dependency>
 
 		<dependency>
@@ -32,7 +32,30 @@
 			<version>1.17.2</version>
 		</dependency>
 
+		<dependency>
+			<groupId>ch.qos.logback</groupId>
+			<artifactId>logback-core</artifactId>
+			<version>1.4.14</version>
+		</dependency>
 
+		<dependency>
+			<groupId>org.slf4j</groupId>
+			<artifactId>slf4j-api</artifactId>
+			<version>1.7.30</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>ch.qos.logback</groupId>
+			<artifactId>logback-classic</artifactId>
+			<version>1.4.14</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.projectlombok</groupId>
+			<artifactId>lombok</artifactId>
+			<version>1.18.30</version>
+		</dependency>
 
 	</dependencies>
 
