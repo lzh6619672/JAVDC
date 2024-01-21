@@ -1,0 +1,9 @@
+
+#日志配置
+logging:
+  level:
+    #日志级别 root表示所有包，也可以单独配置具体包 fatal error warn info debug trace off
+    root: info
+  file:
+    path: /local/log/dev
+    name: app.log

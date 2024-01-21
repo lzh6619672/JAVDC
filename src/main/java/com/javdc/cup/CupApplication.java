@@ -43,6 +43,7 @@ import lombok.extern.slf4j.Slf4j;
 public class CupApplication {
 
 	public static void main(String[] args) {
+		log.info("程序开始执行");
 		String scanPath = "D:\\tinyMediaManager\\media\\cctv";
 		String outputPath = "D:\\tinyMediaManager\\media\\cctv\\JAV_output";
 
@@ -98,6 +99,8 @@ public class CupApplication {
 		} catch (Exception e) {
 			log.error(e.getMessage(), e);
 		}
+
+		log.info("程序执行结束");
 	}
 
 	private static List<String> filterNames = new ArrayList<>();

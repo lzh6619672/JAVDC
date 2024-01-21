@@ -1,5 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE configuration>
+
 <configuration debug="false">
+
+    <!-- 引用 Spring Boot 對 Logback 的預設配置 -->
+    <include resource="org/springframework/boot/logging/logback/base.xml" />
 
     <!--定义日志文件的存储地址 勿在 LogBack 的配置中使用相对路径-->
     <property name="LOG_HOME" value="/home" />
@@ -30,9 +35,18 @@
         </triggeringPolicy>
     </appender>
 
+<!-- 透過 AsyncAppender 使 Log 可以以非同步的方式輸出，以增加寫入效能 -->
+    <appender name="ASYNC" class="ch.qos.logback.classic.AsyncAppender">
+        <!-- 修改 queue 的大小，這個執會影響非同步寫入時的效能 -->
+        <queueSize>512</queueSize>
+
+        <!-- 載入名字為 FILE 的 <appender> -->
+        <appender-ref ref="FILE" />
+    </appender>
+
     <!-- 日志输出级别 -->
-    <root level="DEBUG">
+    <root level="debug">
         <appender-ref ref="STDOUT" />
-        <appender-ref ref="FILE"/>
+        <appender-ref ref="ASYNC"/>
     </root>
 </configuration>
