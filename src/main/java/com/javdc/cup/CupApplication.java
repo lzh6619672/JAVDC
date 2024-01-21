@@ -39,7 +39,6 @@ import cn.hutool.http.HttpResponse;
 import cn.hutool.http.HttpUtil;
 import lombok.extern.slf4j.Slf4j;
 
-
 @Slf4j
 public class CupApplication {
 
@@ -49,6 +48,7 @@ public class CupApplication {
 
 		File file = new File(scanPath);
 		if (!file.exists()) {
+			log.error(outputPath + "不存在");
 			return;
 		}
 
@@ -87,18 +87,16 @@ public class CupApplication {
 
 				@Override
 				public FileVisitResult visitFileFailed(Path file, IOException exc) throws IOException {
-					// TODO Auto-generated method stub
 					throw new UnsupportedOperationException("Unimplemented method 'visitFileFailed'");
 				}
 
 				@Override
 				public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
-					// TODO Auto-generated method stub
 					return FileVisitResult.CONTINUE;
 				}
 			});
 		} catch (Exception e) {
-			// TODO: handle exception
+			log.error(e.getMessage(), e);
 		}
 	}
 
@@ -109,6 +107,7 @@ public class CupApplication {
 	}
 
 	protected static void grabMain(File movieFile, File destPath) {
+		log.debug("开始处理视频文件：{}", movieFile.getAbsolutePath());
 		Map<String, String> infoMap = new HashMap<>();
 
 		movieFile = renameMovieFile(movieFile);
@@ -116,7 +115,7 @@ public class CupApplication {
 		boolean hasMovie = search(movieFile.getName(), infoMap);
 
 		if (!hasMovie) {
-			System.out.println("没找到视频");
+			log.error("未搜索到视频");
 			return;
 		}
 
@@ -127,7 +126,7 @@ public class CupApplication {
 		String fileName = movieFile.getName();
 		for (String string : filterNames) {
 			if (fileName.contains(string)) {
-				System.out.println("文件名称包含" + string + "进行替换");
+				log.debug("文件名称包含{}进行替换", string);
 				fileName = fileName.replace(string, "");
 				return FileUtil.rename(movieFile, fileName, false);
 			}
@@ -176,7 +175,7 @@ public class CupApplication {
 				dirName = "佚名";
 			}
 
-			System.out.println(dirName);
+			log.info("文件夹命名名称为：{}", dirName);
 			File destStarFile = new File(destPath + File.separator + dirName);
 			if (!destStarFile.exists()) {
 				destStarFile.mkdirs();
@@ -187,13 +186,13 @@ public class CupApplication {
 
 			File destMoviePath = new File(destStarFile.getAbsolutePath() + File.separator + num);
 			if (destMoviePath.exists()) {
-				System.out.println("视频已存在");
+				log.debug("视频已存在");
 				return;
 			} else {
 				destMoviePath.mkdirs();
 			}
 
-			movieFile = FileUtil.rename(movieFile, num+"."+FileUtil.extName(movieFile), false);
+			movieFile = FileUtil.rename(movieFile, num + "." + FileUtil.extName(movieFile), false);
 			// 移动视频文件
 			FileUtil.move(movieFile, destMoviePath, false);
 
@@ -208,7 +207,7 @@ public class CupApplication {
 				if (!thumbUrl.startsWith("http") && !thumbUrl.startsWith("https")) {
 					thumbUrl = "https://www.javbus.com/" + thumbUrl;
 				}
-				System.out.println("thumb地址：" + thumbUrl);
+				log.info("封面地址为：{}", thumbUrl);
 				downloadFile(thumbUrl, thumbFile);
 
 				FileUtil.copy(thumbFile, new File(destMoviePath.getAbsolutePath() + File.separator + "fanart.jpg"),
@@ -252,11 +251,11 @@ public class CupApplication {
 			// 生成nfo文件
 			createNfoFile(document, destMoviePath, movieFile);
 		} catch (Exception e) {
-
+			log.error(e.getMessage(), e);
 		}
 	}
 
-	private static void createNfoFile(Document document, File destMoviePath,File movieFile) {
+	private static void createNfoFile(Document document, File destMoviePath, File movieFile) {
 		Element titleEle = document.selectFirst("title");
 		Elements infoEles = document.select("div.movie>div.info>p");
 
@@ -322,11 +321,6 @@ public class CupApplication {
 					org.w3c.dom.Element ele = xmlDocument.createElement("num");
 					ele.setTextContent(num);
 					movieElement.appendChild(ele);
-
-					/* if(!FileUtil.mainName(movieFile.getName()).equals(num)){
-						FileUtil.rename(new File(destMoviePath+File.separator+movieFile.getName()), num+"."+FileUtil.extName(movieFile.getName()), false)
-					} */
-
 					continue;
 				}
 				if (fieldName.contains("系列")) {
@@ -394,8 +388,7 @@ public class CupApplication {
 					new StreamResult(new File(destMoviePath + File.separator + destMoviePath.getName() + ".nfo")));
 
 		} catch (Exception e) {
-			// TODO Auto-generated catch block
-			System.out.println(e.getStackTrace());
+			log.error(e.getMessage(), e);
 		}
 	}
 
@@ -446,13 +439,12 @@ public class CupApplication {
 				if (coverEles.size() > 0) {
 					infoMap.put("coverPath", coverEles.get(0).attr("src"));
 				}
-
+				log.debug("视频文件已搜索到：{}", detailUrl);
 				return true;
 			}
 			return false;
 		} catch (UnsupportedEncodingException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			log.error(e.getMessage(), e);
 		}
 		return false;
 	}
