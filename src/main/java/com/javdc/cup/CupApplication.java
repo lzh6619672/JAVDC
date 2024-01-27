@@ -79,7 +79,7 @@ public class CupApplication {
 					File file1 = file.toFile();
 					String fileName = file1.getName();
 					String mimeType = FileUtil.getMimeType(fileName);
-					if (("video/mp4").equals(mimeType)) {
+					if (("video/mp4").equals(mimeType) || ("application/x-troff-msvideo").equals(mimeType)) {
 						grabMain(file.toFile(), destPath);
 					}
 
